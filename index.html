@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音符學習遊戲</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* 節拍器樣式 */
+        .metronome {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 160px;
+            height: 240px;
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            border-radius: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 16px 50px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        
+        .metronome-arm {
+            width: 8px;
+            height: 120px;
+            background: #e74c3c;
+            border-radius: 4px;
+            transform-origin: bottom center;
+            transform: rotate(-30deg);
+            transition: transform 0.3s ease;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .metronome-arm::before {
+            content: '';
+            position: absolute;
+            top: -16px;
+            left: -8px;
+            width: 24px;
+            height: 24px;
+            background: #c0392b;
+            border-radius: 50%;
+        }
+        
+        .metronome.active .metronome-arm {
+            animation: swing 1.2s ease-in-out infinite;
+        }
+        
+        @keyframes swing {
+            0%, 100% { transform: rotate(-30deg); }
+            50% { transform: rotate(30deg); }
+        }
+        
+        .metronome-base {
+            width: 120px;
+            height: 40px;
+            background: #1a252f;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .metronome-dot {
+            width: 16px;
+            height: 16px;
+            background: #27ae60;
+            border-radius: 50%;
+            opacity: 0.5;
+            transition: opacity 0.2s ease;
+        }
+        
+        .metronome.active .metronome-dot {
+            opacity: 1;
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .mode-btn {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .mode-btn.active {
+            background: #4CAF50;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .mode-btn:not(.active) {
+            background: white;
+            color: #333;
+        }
+        
+        .mode-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .content-area {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            min-height: 500px;
+        }
+        
+        /* 學習模式樣式 */
+        .note-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .note-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            border: 3px solid transparent;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .note-card:hover {
+            border-color: #4CAF50;
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .note-symbol {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .note-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .note-beats {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .note-description {
+            font-size: 0.9rem;
+            color: #888;
+            line-height: 1.4;
+        }
+        
+        /* 遊戲模式樣式 */
+        .game-area {
+            text-align: center;
+        }
+        
+        .score-board {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .score-item {
+            text-align: center;
+        }
+        
+        .score-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        .score-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .question-area {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+        
+        .question-symbol {
+            font-size: 6rem;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .question-text {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .beat-hint-btn {
+            padding: 10px 20px;
+            font-size: 1rem;
+            background: #FF9800;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(255, 152, 0, 0.3);
+        }
+        
+        .beat-hint-btn:hover {
+            background: #F57C00;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+        }
+        
+        .beat-hint-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .option-btn {
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .option-btn:hover {
+            border-color: #4CAF50;
+            background: #f0f8f0;
+        }
+        
+        .option-btn.correct {
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+        
+        .option-btn.incorrect {
+            background: #f44336;
+            color: white;
+            border-color: #f44336;
+        }
+        
+        .next-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .next-btn:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+        
+        .game-complete {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .complete-title {
+            font-size: 2rem;
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+        
+        .final-score {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        
+        .restart-btn {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .restart-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .note-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .options-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .mode-selector {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 節拍器 -->
+    <div class="metronome" id="metronome">
+        <div class="metronome-arm"></div>
+        <div class="metronome-base">
+            <div class="metronome-dot"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🎵 音符學習遊戲 🎵</h1>
+            <p>學習音符和休止符，然後挑戰你的知識！</p>
+        </div>
+        
+        <div class="mode-selector">
+            <button class="mode-btn active" onclick="switchMode('learn')">📚 學習模式</button>
+            <button class="mode-btn" onclick="switchMode('game')">🎮 遊戲模式</button>
+        </div>
+        
+        <div class="content-area">
+            <!-- 學習模式 -->
+            <div id="learn-mode">
+                <h2 style="text-align: center; margin-bottom: 30px; color: #2c3e50;">認識音符和休止符</h2>
+                
+                <div class="note-grid">
+                    <div class="note-card" onclick="playNote('whole')">
+                        <div class="note-symbol">○</div>
+                        <div class="note-name">全音符</div>
+                        <div class="note-beats">4拍</div>
+                        <div class="note-description">最長的音符，持續4拍的時間</div>
+                    </div>
+                    
+                    <div class="note-card" onclick="playNote('half')">
+                        <div class="note-symbol">
+                            <svg width="60" height="80" viewBox="0 0 60 80" style="margin: 0 auto;">
+                                <!-- 空心圓形符頭 -->
+                                <ellipse cx="20" cy="60" rx="12" ry="8" fill="none" stroke="#333" stroke-width="3" transform="rotate(-20 20 60)"/>
+                                <!-- 直線符桿 -->
+                                <line x1="32" y1="55" x2="32" y2="10" stroke="#333" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <div class="note-name">二分音符</div>
+                        <div class="note-beats">2拍</div>
+                        <div class="note-description">持續2拍的時間，是全音符的一半</div>
+                    </div>
+                    
+                    <div class="note-card" onclick="playNote('quarter')">
+                        <div class="note-symbol">
+                            <svg width="60" height="80" viewBox="0 0 60 80" style="margin: 0 auto;">
+                                <!-- 實心圓形符頭 -->
+                                <ellipse cx="20" cy="60" rx="12" ry="8" fill="#333" transform="rotate(-20 20 60)"/>
+                                <!-- 直線符桿 -->
+                                <line x1="32" y1="55" x2="32" y2="10" stroke="#333" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <div class="note-name">四分音符</div>
+                        <div class="note-beats">1拍</div>
+                        <div class="note-description">最常見的音符，持續1拍</div>
+                    </div>
+                    
+                    <div class="note-card" onclick="playNote('eighth')">
+                        <div class="note-symbol">♫</div>
+                        <div class="note-name">八分音符</div>
+                        <div class="note-beats">0.5拍</div>
+                        <div class="note-description">持續半拍，通常成對出現</div>
+                    </div>
+                    
+                    <!-- ✅ 改用 SVG 以確保平板可顯示四分休止符 -->
+                    <div class="note-card" onclick="playNote('quarterRest')">
+                        <div class="note-symbol">
+                            <svg width="60" height="80" viewBox="0 0 60 80" aria-hidden="true" style="margin: 0 auto;">
+                                <path d="M30 12 l8 14 -16 16 16 18 -12 20"
+                                      fill="none" stroke="#333" stroke-width="4"
+                                      stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="note-name">四分休止符</div>
+                        <div class="note-beats">1拍靜音</div>
+                        <div class="note-description">表示1拍的靜音時間</div>
+                    </div>
+                    
+                    <div class="note-card" onclick="playNote('halfRest')">
+                        <div class="note-symbol">■</div>
+                        <div class="note-name">二分休止符</div>
+                        <div class="note-beats">2拍靜音</div>
+                        <div class="note-description">表示2拍的靜音時間</div>
+                    </div>
+                </div>
+                
+                <div style="background: #e8f5e8; padding: 20px; border-radius: 10px; margin-top: 20px;">
+                    <h3 style="color: #2e7d32; margin-bottom: 15px;">💡 學習小貼士</h3>
+                    <ul style="color: #2e7d32; line-height: 1.6;">
+                        <li>🔊 點擊每個音符卡片來聽節拍聲音</li>
+                        <li>音符會播放對應拍數的節拍聲（全音符4拍，二分音符2拍等）</li>
+                        <li>休止符會播放短促的提示音表示靜音</li>
+                        <li>記住：數字越大，音符時間越短（四分音符比二分音符短）</li>
+                        <li>準備好了就切換到遊戲模式測試你的知識！</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- 遊戲模式 -->
+            <div id="game-mode" class="hidden">
+                <div class="score-board">
+                    <div class="score-item">
+                        <div class="score-number" id="current-question">1</div>
+                        <div class="score-label">題目</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="score-number" id="correct-count">0</div>
+                        <div class="score-label">答對</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="score-number" id="total-questions">10</div>
+                        <div class="score-label">總題數</div>
+                    </div>
+                </div>
+                
+                <div id="question-container">
+                    <div class="question-area">
+                        <div class="question-symbol" id="question-symbol">♩</div>
+                        <div class="question-text" id="question-text">這個音符叫什麼名字？</div>
+                        
+                        <button class="beat-hint-btn" id="beat-hint-btn" onclick="playQuestionBeat()">🔊 聽節拍提示</button>
+                        
+                        <div class="options-grid" id="options-container">
+                            <!-- 選項會動態生成 -->
+                        </div>
+                        
+                        <button class="next-btn hidden" id="next-btn" onclick="nextQuestion()">下一題</button>
+                    </div>
+                </div>
+                
+                <div id="game-complete" class="game-complete hidden">
+                    <div class="complete-title">🎉 恭喜完成！</div>
+                    <div class="final-score" id="final-score-text"></div>
+                    <div style="margin-bottom: 20px;">
+                        <div id="performance-message" style="font-size: 1.2rem; color: #666;"></div>
+                    </div>
+                    <button class="restart-btn" onclick="restartGame()">再玩一次</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 音符數據（為四分休止符補上 SVG，避免平板無字型導致不顯示）
+        const notes = [
+            { symbol: '○', name: '全音符', beats: '4拍', type: 'note', duration: 4, svg: '<svg width="60" height="80" viewBox="0 0 60 80"><ellipse cx="30" cy="40" rx="15" ry="10" fill="none" stroke="#333" stroke-width="3" transform="rotate(-20 30 40)"/></svg>' },
+            { symbol: '♩', name: '二分音符', beats: '2拍', type: 'note', duration: 2, svg: '<svg width="60" height="80" viewBox="0 0 60 80"><ellipse cx="20" cy="60" rx="12" ry="8" fill="none" stroke="#333" stroke-width="3" transform="rotate(-20 20 60)"/><line x1="32" y1="55" x2="32" y2="10" stroke="#333" stroke-width="2"/></svg>' },
+            { symbol: '♪', name: '四分音符', beats: '1拍', type: 'note', duration: 1, svg: '<svg width="60" height="80" viewBox="0 0 60 80"><ellipse cx="20" cy="60" rx="12" ry="8" fill="#333" transform="rotate(-20 20 60)"/><line x1="32" y1="55" x2="32" y2="10" stroke="#333" stroke-width="2"/></svg>' },
+            { symbol: '♫', name: '八分音符', beats: '0.5拍', type: 'note', duration: 0.5 },
+            { symbol: '𝄽', name: '四分休止符', beats: '1拍靜音', type: 'rest', duration: 1, svg: '<svg width="60" height="80" viewBox="0 0 60 80"><path d="M30 12 l8 14 -16 16 16 18 -12 20" fill="none" stroke="#333" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+            { symbol: '■', name: '二分休止符', beats: '2拍靜音', type: 'rest', duration: 2 }
+        ];
+        
+        // 遊戲狀態
+        let currentMode = 'learn';
+        let currentQuestion = 0;
+        let correctAnswers = 0;
+        let totalQuestions = 10;
+        let gameQuestions = [];
+        let answered = false;
+        let currentQuestionNote = null;
+        
+        // 切換模式（平板相容：即使沒有 event 也不會報錯）
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // 更新按鈕狀態
+            const buttons = document.querySelectorAll('.mode-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            const targetBtn = (typeof event !== 'undefined' && event && event.target && event.target.classList && event.target.classList.contains('mode-btn'))
+                ? event.target
+                : buttons[mode === 'learn' ? 0 : 1];
+            if (targetBtn) targetBtn.classList.add('active');
+            
+            // 顯示對應內容
+            if (mode === 'learn') {
+                document.getElementById('learn-mode').classList.remove('hidden');
+                document.getElementById('game-mode').classList.add('hidden');
+            } else {
+                document.getElementById('learn-mode').classList.add('hidden');
+                document.getElementById('game-mode').classList.remove('hidden');
+                startGame();
+            }
+        }
+        
+        // 音頻上下文和節拍器
+        let audioContext;
+        let isPlaying = false;
+        
+        // 初始化音頻（平板/iOS：嘗試 resume）
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume().catch(() => {});
+            }
+        }
+        
+        // 播放連續音符聲音
+        function playContinuousNote(frequency = 440, duration = 1) {
+            if (!audioContext) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            // 設置音量包絡
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + duration - 0.05);
+            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+        
+        // 播放音符節拍
+        function playNoteBeats(duration, noteType = 'note') {
+            if (isPlaying) return;
+            
+            initAudio();
+            isPlaying = true;
+            
+            // 啟動節拍器動畫
+            const metronome = document.getElementById('metronome');
+            metronome.classList.add('active');
+            
+            if (noteType === 'rest') {
+                // 休止符不播放聲音，只顯示節拍器動畫
+                setTimeout(() => {
+                    metronome.classList.remove('active');
+                    isPlaying = false;
+                }, duration * 600);
+                return;
+            }
+            
+            // 八分音符特殊處理：播放兩次短音
+            if (duration === 0.5) {
+                const singleNoteDuration = 0.25; // 每個音的長度
+                const frequency = 440;
+                
+                // 播放第一個音
+                playContinuousNote(frequency, singleNoteDuration);
+                
+                // 延遲後播放第二個音
+                setTimeout(() => {
+                    playContinuousNote(frequency, singleNoteDuration);
+                }, singleNoteDuration * 1000 + 50); // 稍微間隔
+                
+                setTimeout(() => {
+                    metronome.classList.remove('active');
+                    isPlaying = false;
+                }, duration * 1200);
+            } else {
+                // 其他音符播放連續聲音
+                const totalDuration = duration * 0.6; // 總持續時間（秒）
+                const frequency = 440; // A4音符頻率
+                
+                playContinuousNote(frequency, totalDuration);
+                
+                setTimeout(() => {
+                    metronome.classList.remove('active');
+                    isPlaying = false;
+                }, totalDuration * 1000);
+            }
+        }
+        
+        // 播放音符（學習模式互動）
+        function playNote(noteType) {
+            const card = (typeof event !== 'undefined' && event && event.currentTarget) ? event.currentTarget : null;
+            if (card) {
+                card.style.transform = 'scale(1.05)';
+                card.style.borderColor = '#4CAF50';
+            }
+            
+            // 找到對應的音符並播放節拍
+            const note = notes.find(n => {
+                if (noteType === 'whole') return n.name === '全音符';
+                if (noteType === 'half') return n.name === '二分音符';
+                if (noteType === 'quarter') return n.name === '四分音符';
+                if (noteType === 'eighth') return n.name === '八分音符';
+                if (noteType === 'quarterRest') return n.name === '四分休止符';
+                if (noteType === 'halfRest') return n.name === '二分休止符';
+                return false;
+            });
+            
+            if (note) {
+                playNoteBeats(note.duration, note.type);
+            }
+            
+            if (card) {
+                setTimeout(() => {
+                    card.style.transform = '';
+                    card.style.borderColor = '透明';
+                    card.style.borderColor = 'transparent';
+                }, 200);
+            }
+        }
+        
+        // 播放問題音符的節拍（遊戲模式）
+        function playQuestionBeat() {
+            if (!currentQuestionNote) return;
+            
+            const btn = document.getElementById('beat-hint-btn');
+            btn.style.transform = 'scale(0.95)';
+            btn.style.background = '#F57C00';
+            
+            playNoteBeats(currentQuestionNote.duration, currentQuestionNote.type);
+            
+            setTimeout(() => {
+                btn.style.transform = '';
+                btn.style.background = '#FF9800';
+            }, 300);
+        }
+        
+        // 開始遊戲
+        function startGame() {
+            currentQuestion = 0;
+            correctAnswers = 0;
+            answered = false;
+            gameQuestions = generateQuestions();
+            
+            document.getElementById('question-container').classList.remove('hidden');
+            document.getElementById('game-complete').classList.add('hidden');
+            
+            updateScoreBoard();
+            showQuestion();
+        }
+        
+        // 生成問題
+        function generateQuestions() {
+            const questions = [];
+            const questionTypes = [
+                'name', // 問名稱
+                'beats', // 問拍數
+                'type'   // 問類型
+            ];
+            
+            for (let i = 0; i < totalQuestions; i++) {
+                const note = notes[Math.floor(Math.random() * notes.length)];
+                const questionType = questionTypes[Math.floor(Math.random() * questionTypes.length)];
+                
+                questions.push({
+                    note: note,
+                    type: questionType
+                });
+            }
+            
+            return questions;
+        }
+        
+        // 顯示問題
+        function showQuestion() {
+            if (currentQuestion >= totalQuestions) {
+                showGameComplete();
+                return;
+            }
+            
+            const question = gameQuestions[currentQuestion];
+            const questionSymbol = document.getElementById('question-symbol');
+            const questionText = document.getElementById('question-text');
+            const optionsContainer = document.getElementById('options-container');
+            const nextBtn = document.getElementById('next-btn');
+            
+            answered = false;
+            nextBtn.classList.add('hidden');
+            currentQuestionNote = question.note; // 設置當前問題音符
+            
+            if (question.note.svg) {
+                questionSymbol.innerHTML = question.note.svg;
+            } else {
+                questionSymbol.textContent = question.note.symbol;
+            }
+            
+            let correctAnswer;
+            let options = [];
+            
+            switch (question.type) {
+                case 'name':
+                    questionText.textContent = '這個音符/休止符叫什麼名字？';
+                    correctAnswer = question.note.name;
+                    options = notes.map(n => n.name);
+                    break;
+                case 'beats':
+                    questionText.textContent = '這個音符/休止符代表多少拍？';
+                    correctAnswer = question.note.beats;
+                    options = notes.map(n => n.beats);
+                    break;
+                case 'type':
+                    questionText.textContent = '這是音符還是休止符？';
+                    correctAnswer = question.note.type === 'note' ? '音符' : '休止符';
+                    options = ['音符', '休止符', '強音記號', '延音記號'];
+                    break;
+            }
+            
+            // 確保選項不重複並包含正確答案
+            options = [...new Set(options)];
+            if (!options.includes(correctAnswer)) {
+                options[0] = correctAnswer;
+            }
+            
+            // 隨機排序選項
+            options = options.sort(() => Math.random() - 0.5).slice(0, 4);
+            if (!options.includes(correctAnswer)) {
+                options[Math.floor(Math.random() * options.length)] = correctAnswer;
+            }
+            
+            // 生成選項按鈕
+            optionsContainer.innerHTML = '';
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.className = 'option-btn';
+                button.textContent = option;
+                button.onclick = () => selectAnswer(option, correctAnswer);
+                optionsContainer.appendChild(button);
+            });
+        }
+        
+        // 選擇答案
+        function selectAnswer(selected, correct) {
+            if (answered) return;
+            
+            answered = true;
+            const buttons = document.querySelectorAll('.option-btn');
+            
+            buttons.forEach(btn => {
+                if (btn.textContent === correct) {
+                    btn.classList.add('correct');
+                } else if (btn.textContent === selected && selected !== correct) {
+                    btn.classList.add('incorrect');
+                }
+                btn.style.pointerEvents = 'none';
+            });
+            
+            if (selected === correct) {
+                correctAnswers++;
+                updateScoreBoard();
+            }
+            
+            document.getElementById('next-btn').classList.remove('hidden');
+        }
+        
+        // 下一題
+        function nextQuestion() {
+            currentQuestion++;
+            updateScoreBoard();
+            showQuestion();
+        }
+        
+        // 更新計分板
+        function updateScoreBoard() {
+            document.getElementById('current-question').textContent = currentQuestion + 1;
+            document.getElementById('correct-count').textContent = correctAnswers;
+        }
+        
+        // 顯示遊戲完成
+        function showGameComplete() {
+            document.getElementById('question-container').classList.add('hidden');
+            document.getElementById('game-complete').classList.remove('hidden');
+            
+            const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+            document.getElementById('final-score-text').textContent = 
+                `你答對了 ${correctAnswers} / ${totalQuestions} 題 (${percentage}%)`;
+            
+            let message = '';
+            if (percentage >= 90) {
+                message = '🌟 太棒了！你是音符大師！';
+            } else if (percentage >= 70) {
+                message = '👍 很好！繼續加油！';
+            } else if (percentage >= 50) {
+                message = '📚 不錯的開始，多練習會更好！';
+            } else {
+                message = '💪 別灰心，回到學習模式多練習吧！';
+            }
+            
+            document.getElementById('performance-message').textContent = message;
+        }
+        
+        // 重新開始遊戲
+        function restartGame() {
+            startGame();
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 預設顯示學習模式（平板相容的 switchMode 會自行處理無 event 情況）
+            switchMode('learn');
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9726719830284a98',t:'MTc1NTc0MDY1MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
+pt>
+        // 音符數據
+        const notes = [
+            { symbol: '○', name: '全音符', beats: '4拍', type: 'note', duration: 4, svg: '<svg width="60" height="80" viewBox="0 0 60 80"><ellipse cx="30" cy="40" rx="15" ry="10" fill="none" stroke="#333" stroke-width="3" transform="rotate(-20 30 40)"/></svg>' },
+            { symbol: '♩', name: '二分音符', beats: '2拍', type: 'note', duration: 2, svg: '<svg width="60" height="80" viewBox="0 0 60 80"><ellipse cx="20" cy="60" rx="12" ry="8" fill="none" stroke="#333" stroke-width="3" transform="rotate(-20 20 60)"/><line x1="32" y1="55" x2="32" y2="10" stroke="#333" stroke-width="2"/></svg>' },
+            { symbol: '♪', name: '四分音符', beats: '1拍', type: 'note', duration: 1, svg: '<svg width="60" height="80" viewBox="0 0 60 80"><ellipse cx="20" cy="60" rx="12" ry="8" fill="#333" transform="rotate(-20 20 60)"/><line x1="32" y1="55" x2="32" y2="10" stroke="#333" stroke-width="2"/></svg>' },
+            { symbol: '♫', name: '八分音符', beats: '0.5拍', type: 'note', duration: 0.5 },
+            { symbol: '𝄽', name: '四分休止符', beats: '1拍靜音', type: 'rest', duration: 1 },
+            { symbol: '■', name: '二分休止符', beats: '2拍靜音', type: 'rest', duration: 2 }
+        ];
+        
+        // 遊戲狀態
+        let currentMode = 'learn';
+        let currentQuestion = 0;
+        let correctAnswers = 0;
+        let totalQuestions = 10;
+        let gameQuestions = [];
+        let answered = false;
+        let currentQuestionNote = null;
+        
+        // 切換模式（平板相容：即使沒有 event 也不會報錯）
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // 更新按鈕狀態
+            const buttons = document.querySelectorAll('.mode-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            // 以 event.target 為主，若無 event（如 DOMContentLoaded 呼叫），就用索引推斷
+            const targetBtn = (typeof event !== 'undefined' && event && event.target && event.target.classList && event.target.classList.contains('mode-btn'))
+                ? event.target
+                : buttons[mode === 'learn' ? 0 : 1];
+            if (targetBtn) targetBtn.classList.add('active');
+            
+            // 顯示對應內容
+            if (mode === 'learn') {
+                document.getElementById('learn-mode').classList.remove('hidden');
+                document.getElementById('game-mode').classList.add('hidden');
+            } else {
+                document.getElementById('learn-mode').classList.add('hidden');
+                document.getElementById('game-mode').classList.remove('hidden');
+                startGame();
+            }
+        }
+        
+        // 音頻上下文和節拍器
+        let audioContext;
+        let isPlaying = false;
+        
+        // 初始化音頻（平板/iOS：嘗試 resume）
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext && audioContext.state === 'suspended') {
+                // 在使用者互動（點擊）情況下呼叫，iOS/Safari 允許 resume
+                audioContext.resume().catch(() => {});
+            }
+        }
+        
+        // 播放連續音符聲音
+        function playContinuousNote(frequency = 440, duration = 1) {
+            if (!audioContext) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            // 設置音量包絡
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + duration - 0.05);
+            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+        
+        // 播放音符節拍
+        function playNoteBeats(duration, noteType = 'note') {
+            if (isPlaying) return;
+            
+            initAudio();
+            isPlaying = true;
+            
+            // 啟動節拍器動畫
+            const metronome = document.getElementById('metronome');
+            metronome.classList.add('active');
+            
+            if (noteType === 'rest') {
+                // 休止符不播放聲音，只顯示節拍器動畫
+                setTimeout(() => {
+                    metronome.classList.remove('active');
+                    isPlaying = false;
+                }, duration * 600);
+                return;
+            }
+            
+            // 八分音符特殊處理：播放兩次短音
+            if (duration === 0.5) {
+                const singleNoteDuration = 0.25; // 每個音的長度
+                const frequency = 440;
+                
+                // 播放第一個音
+                playContinuousNote(frequency, singleNoteDuration);
+                
+                // 延遲後播放第二個音
+                setTimeout(() => {
+                    playContinuousNote(frequency, singleNoteDuration);
+                }, singleNoteDuration * 1000 + 50); // 稍微間隔
+                
+                setTimeout(() => {
+                    metronome.classList.remove('active');
+                    isPlaying = false;
+                }, duration * 1200);
+            } else {
+                // 其他音符播放連續聲音
+                const totalDuration = duration * 0.6; // 總持續時間（秒）
+                const frequency = 440; // A4音符頻率
+                
+                playContinuousNote(frequency, totalDuration);
+                
+                setTimeout(() => {
+                    metronome.classList.remove('active');
+                    isPlaying = false;
+                }, totalDuration * 1000);
+            }
+        }
+        
+        // 播放音符（學習模式互動）
+        function playNote(noteType) {
+            const card = (typeof event !== 'undefined' && event && event.currentTarget) ? event.currentTarget : null;
+            if (card) {
+                card.style.transform = 'scale(1.05)';
+                card.style.borderColor = '#4CAF50';
+            }
+            
+            // 找到對應的音符並播放節拍
+            const note = notes.find(n => {
+                if (noteType === 'whole') return n.name === '全音符';
+                if (noteType === 'half') return n.name === '二分音符';
+                if (noteType === 'quarter') return n.name === '四分音符';
+                if (noteType === 'eighth') return n.name === '八分音符';
+                if (noteType === 'quarterRest') return n.name === '四分休止符';
+                if (noteType === 'halfRest') return n.name === '二分休止符';
+                return false;
+            });
+            
+            if (note) {
+                playNoteBeats(note.duration, note.type);
+            }
+            
+            if (card) {
+                setTimeout(() => {
+                    card.style.transform = '';
+                    card.style.borderColor = 'transparent';
+                }, 200);
+            }
+        }
+        
+        // 播放問題音符的節拍（遊戲模式）
+        function playQuestionBeat() {
+            if (!currentQuestionNote) return;
+            
+            const btn = document.getElementById('beat-hint-btn');
+            btn.style.transform = 'scale(0.95)';
+            btn.style.background = '#F57C00';
+            
+            playNoteBeats(currentQuestionNote.duration, currentQuestionNote.type);
+            
+            setTimeout(() => {
+                btn.style.transform = '';
+                btn.style.background = '#FF9800';
+            }, 300);
+        }
+        
+        // 開始遊戲
+        function startGame() {
+            currentQuestion = 0;
+            correctAnswers = 0;
+            answered = false;
+            gameQuestions = generateQuestions();
+            
+            document.getElementById('question-container').classList.remove('hidden');
+            document.getElementById('game-complete').classList.add('hidden');
+            
+            updateScoreBoard();
+            showQuestion();
+        }
+        
+        // 生成問題
+        function generateQuestions() {
+            const questions = [];
+            const questionTypes = [
+                'name', // 問名稱
+                'beats', // 問拍數
+                'type'   // 問類型
+            ];
+            
+            for (let i = 0; i < totalQuestions; i++) {
+                const note = notes[Math.floor(Math.random() * notes.length)];
+                const questionType = questionTypes[Math.floor(Math.random() * questionTypes.length)];
+                
+                questions.push({
+                    note: note,
+                    type: questionType
+                });
+            }
+            
+            return questions;
+        }
+        
+        // 顯示問題
+        function showQuestion() {
+            if (currentQuestion >= totalQuestions) {
+                showGameComplete();
+                return;
+            }
+            
+            const question = gameQuestions[currentQuestion];
+            const questionSymbol = document.getElementById('question-symbol');
+            const questionText = document.getElementById('question-text');
+            const optionsContainer = document.getElementById('options-container');
+            const nextBtn = document.getElementById('next-btn');
+            
+            answered = false;
+            nextBtn.classList.add('hidden');
+            currentQuestionNote = question.note; // 設置當前問題音符
+            
+            if (question.note.svg) {
+                questionSymbol.innerHTML = question.note.svg;
+            } else {
+                questionSymbol.textContent = question.note.symbol;
+            }
+            
+            let correctAnswer;
+            let options = [];
+            
+            switch (question.type) {
+                case 'name':
+                    questionText.textContent = '這個音符/休止符叫什麼名字？';
+                    correctAnswer = question.note.name;
+                    options = notes.map(n => n.name);
+                    break;
+                case 'beats':
+                    questionText.textContent = '這個音符/休止符代表多少拍？';
+                    correctAnswer = question.note.beats;
+                    options = notes.map(n => n.beats);
+                    break;
+                case 'type':
+                    questionText.textContent = '這是音符還是休止符？';
+                    correctAnswer = question.note.type === 'note' ? '音符' : '休止符';
+                    options = ['音符', '休止符', '強音記號', '延音記號'];
+                    break;
+            }
+            
+            // 確保選項不重複並包含正確答案
+            options = [...new Set(options)];
+            if (!options.includes(correctAnswer)) {
+                options[0] = correctAnswer;
+            }
+            
+            // 隨機排序選項
+            options = options.sort(() => Math.random() - 0.5).slice(0, 4);
+            if (!options.includes(correctAnswer)) {
+                options[Math.floor(Math.random() * options.length)] = correctAnswer;
+            }
+            
+            // 生成選項按鈕
+            optionsContainer.innerHTML = '';
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.className = 'option-btn';
+                button.textContent = option;
+                button.onclick = () => selectAnswer(option, correctAnswer);
+                optionsContainer.appendChild(button);
+            });
+        }
+        
+        // 選擇答案
+        function selectAnswer(selected, correct) {
+            if (answered) return;
+            
+            answered = true;
+            const buttons = document.querySelectorAll('.option-btn');
+            
+            buttons.forEach(btn => {
+                if (btn.textContent === correct) {
+                    btn.classList.add('correct');
+                } else if (btn.textContent === selected && selected !== correct) {
+                    btn.classList.add('incorrect');
+                }
+                btn.style.pointerEvents = 'none';
+            });
+            
+            if (selected === correct) {
+                correctAnswers++;
+                updateScoreBoard();
+            }
+            
+            document.getElementById('next-btn').classList.remove('hidden');
+        }
+        
+        // 下一題
+        function nextQuestion() {
+            currentQuestion++;
+            updateScoreBoard();
+            showQuestion();
+        }
+        
+        // 更新計分板
+        function updateScoreBoard() {
+            document.getElementById('current-question').textContent = currentQuestion + 1;
+            document.getElementById('correct-count').textContent = correctAnswers;
+        }
+        
+        // 顯示遊戲完成
+        function showGameComplete() {
+            document.getElementById('question-container').classList.add('hidden');
+            document.getElementById('game-complete').classList.remove('hidden');
+            
+            const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+            document.getElementById('final-score-text').textContent = 
+                `你答對了 ${correctAnswers} / ${totalQuestions} 題 (${percentage}%)`;
+            
+            let message = '';
+            if (percentage >= 90) {
+                message = '🌟 太棒了！你是音符大師！';
+            } else if (percentage >= 70) {
+                message = '👍 很好！繼續加油！';
+            } else if (percentage >= 50) {
+                message = '📚 不錯的開始，多練習會更好！';
+            } else {
+                message = '💪 別灰心，回到學習模式多練習吧！';
+            }
+            
+            document.getElementById('performance-message').textContent = message;
+        }
+        
+        // 重新開始遊戲
+        function restartGame() {
+            startGame();
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 預設顯示學習模式（平板相容的 switchMode 會自行處理無 event 情況）
+            switchMode('learn');
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9726719830284a98',t:'MTc1NTc0MDY1MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
